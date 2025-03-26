@@ -1,68 +1,92 @@
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+
 }
 
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
+
 }
 
-enum UserRole {
-  ADMIN
-  USER
-  GUEST
-}
+
 
 model User {
-  id        String   @id @default(cuid())
+  id        String   @id @default(uuid())
+  username  String   @unique
   email     String   @unique
   password  String
-  username  String   @unique
-  role      UserRole @default(USER)
-  avatar    Avatar?
-  spaces    Space[]
+  status   UserStatus @default(OFFLINE)
+  avatar    String?
+  bio       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-}
-
-model Avatar {
-  id        String   @id @default(cuid())
-  name      String
-  imageUrl  String
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
+  spaces    Space[]
+  messages  Message[]
+  spaceMembers SpaceMember[]
 }
 
 model Space {
-  id          String        @id @default(cuid())
+  id          String    @id @default(uuid())
   name        String
   description String?
+  owner       User      @relation(fields: [ownerId], references: [id])
   ownerId     String
-  owner       User          @relation(fields: [ownerId], references: [id])
-  worlds      World[]
-  elements    SpaceElement[]
-  isPublic    Boolean       @default(false)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  type        SpaceType @default(PUBLIC)
+  maxUsers    Int       @default(10)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+  members     SpaceMember[]
 }
 
-model World {
-  id        String   @id @default(cuid())
-  name      String
-  spaceId   String
+model SpaceMember {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
   space     Space    @relation(fields: [spaceId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  spaceId   String
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  @@unique([userId, spaceId])
 }
 
-model SpaceElement {
-  id        String   @id @default(cuid())
-  name      String
-  type      String
-  data      Json
-  spaceId   String
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  type      MessageType @default(TEXT)
+  sender    User     @relation(fields: [senderId], references: [id])
+  senderId  String
   space     Space    @relation(fields: [spaceId], references: [id])
+  spaceId   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+enum SpaceType {
+  PUBLIC
+  PRIVATE
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  DO_NOT_DISTURB
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  MEMBER
+}
+
+enum MessageType {
+  TEXT
+  SYSTEM
+  VOICE
+  IMAGE
 }
